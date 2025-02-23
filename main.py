@@ -149,7 +149,7 @@ class MemeSender(Star):
                 f"🔗 访问地址：http://{public_ip}:{self.server_port}\n"
                 )
             yield event.plain_result(
-                f"⚠️ 如果地址错误, 请使用 [服务器公网ip]:{self.server_port} 访问\n"
+                f"⚠️ 如果地址错误或未发出, 请使用 [服务器公网ip]:{self.server_port} 访问\n"
                 f"🔑 临时密钥：{self.server_key} （本次有效）\n"
                 f"⚠️ 请勿分享给未授权用户"
                 )
