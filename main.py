@@ -202,8 +202,9 @@ class MemeSender(Star):
         self.category_mapping_string = dict_to_string(self.category_mapping)
         self.sys_prompt_add = self.prompt_head + self.category_mapping_string + self.prompt_tail_1 + str(self.max_emotions_per_message) + self.prompt_tail_2
         personas = self.context.provider_manager.personas
+        persona_backup = persona.copy()
         for persona in personas:
-            persona["prompt"] += self.sys_prompt_add
+            persona["prompt"] =  self.sys_prompt_add
             
 
     @meme_manager.command("查看图库")
@@ -362,7 +363,6 @@ class MemeSender(Star):
     @filter.on_llm_response(priority=99999)
     async def resp(self, event: AstrMessageEvent, response: LLMResponse):
         """处理 LLM 响应，识别表情, 注入人格"""
-        self._reload_personas()
         
         if not response or not response.completion_text:
             return
