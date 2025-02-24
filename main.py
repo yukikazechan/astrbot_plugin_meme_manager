@@ -22,6 +22,7 @@ from astrbot.core.message.components import Plain
 from astrbot.api.all import *
 from astrbot.core.message.message_event_result import MessageChain
 from astrbot.api.provider import Personality
+from astrbot.core.platform.sources.gewechat.gewechat_platform_adapter import GewechatPlatformAdapter
 from .webui import run_server, ServerState
 from .utils import get_public_ip, generate_secret_key, dict_to_string, load_json
 from .image_host.img_sync import ImageSync
@@ -338,11 +339,12 @@ class MemeSender(Star):
             yield event.plain_result(f"保存失败了：{str(e)}")
 
     async def reload_emotions(self):
-        """动态加载表情配置"""
-        config_path = os.path.join(MEMES_DATA_PATH)
-        if os.path.exists(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
-                self.category_manager.update_descriptions(json.load(f))
+        """动态重新加载表情配置并更新人格"""
+        try:
+            self.category_manager.sync_with_filesystem()
+            
+        except Exception as e:
+            self.logger.error(f"重新加载表情配置失败: {str(e)}")
 
     def _check_meme_directories(self):
         """检查表情包目录是否存在并且包含图片"""
@@ -482,7 +484,14 @@ class MemeSender(Star):
                 meme_file = os.path.join(emotion_path, meme)
                 
                 if random.randint(0, 100) <= self.emotions_probability:
-                    await self.context.send_message(
+                    if event.get_platform_name() == "gewechat":
+                        assert isinstance(event, GewechatPlatformAdapter)
+                        client = event.client
+                        to_wxid = self.message_obj.raw_message.get('to_wxid', None)
+                        
+                        await client.post_image(to_wxid, meme_file)
+                    else:
+                        await self.context.send_message(
                             event.unified_msg_origin,
                             MessageChain([Image.fromFileSystem(meme_file)]),
                         )
