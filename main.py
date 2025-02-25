@@ -11,6 +11,7 @@ import imghdr
 import copy
 from PIL import Image
 import asyncio
+import shutil
 from multiprocessing import Process
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
@@ -22,11 +23,10 @@ from astrbot.core.message.components import Plain
 from astrbot.api.all import *
 from astrbot.core.message.message_event_result import MessageChain
 from astrbot.api.provider import Personality
-from astrbot.core.platform.sources.gewechat.gewechat_platform_adapter import GewechatPlatformAdapter
 from .webui import run_server, ServerState
 from .utils import get_public_ip, generate_secret_key, dict_to_string, load_json
 from .image_host.img_sync import ImageSync
-from .config import MEMES_DIR, MEMES_DATA_PATH, DEFAULT_CATEGORY_DESCRIPTIONS
+from .config import MEMES_DIR, MEMES_DATA_PATH, DEFAULT_CATEGORY_DESCRIPTIONS, TEMP_DIR
 from .backend.category_manager import CategoryManager
 from .init import init_plugin
 
@@ -449,7 +449,11 @@ class MemeSender(Star):
                 if isinstance(component, Plain):
                     text_result = text_result.message(component.text)
 
-            event.set_result(text_result)
+            if text_result.get_plain_text().strip():
+                event.set_result(text_result)
+            else:
+                await self.after_message_sent(event)
+                event.stop_event()
 
         except Exception as e:
             self.logger.error(f"处理文本失败: {str(e)}")
@@ -485,11 +489,15 @@ class MemeSender(Star):
                 
                 if random.randint(0, 100) <= self.emotions_probability:
                     if event.get_platform_name() == "gewechat":
+                        from astrbot.core.platform.sources.gewechat.gewechat_platform_adapter import GewechatPlatformAdapter
                         assert isinstance(event, GewechatPlatformAdapter)
                         client = event.client
                         to_wxid = self.message_obj.raw_message.get('to_wxid', None)
+                        if not os.path.exists(os.path.join(TEMP_DIR, meme)):
+                            shutil.copy2(meme_file, os.path.join(TEMP_DIR, meme))
+                        img_url = f"{client.file_server_url}/{meme}"
                         
-                        await client.post_image(to_wxid, meme_file)
+                        await client.post_image(to_wxid, img_url)
                     else:
                         await self.context.send_message(
                             event.unified_msg_origin,

@@ -7,6 +7,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DATA_DIR = os.path.join(CURRENT_DIR, "../../memes_data")
 MEMES_DIR = os.path.join(BASE_DATA_DIR, "memes")  # 表情包存储路径
 MEMES_DATA_PATH = os.path.join(BASE_DATA_DIR, "memes_data.json")  # 类别描述数据文件路径
+TEMP_DIR = os.path.join(CURRENT_DIR, "../../temp")
 
 # 默认的类别描述
 DEFAULT_CATEGORY_DESCRIPTIONS = {
