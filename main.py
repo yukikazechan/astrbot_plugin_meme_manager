@@ -23,6 +23,8 @@ from astrbot.core.message.components import Plain
 from astrbot.api.all import *
 from astrbot.core.message.message_event_result import MessageChain
 from astrbot.api.provider import Personality
+from astrbot.core.platform.sources.gewechat.gewechat_platform_adapter import GewechatPlatformAdapter
+from astrbot.core.platform.sources.gewechat.gewechat_event import GewechatPlatformEvent
 from .webui import run_server, ServerState
 from .utils import get_public_ip, generate_secret_key, dict_to_string, load_json
 from .image_host.img_sync import ImageSync
@@ -489,15 +491,7 @@ class MemeSender(Star):
                 
                 if random.randint(0, 100) <= self.emotions_probability:
                     if event.get_platform_name() == "gewechat":
-                        from astrbot.core.platform.sources.gewechat.gewechat_platform_adapter import GewechatPlatformAdapter
-                        assert isinstance(event, GewechatPlatformAdapter)
-                        client = event.client
-                        to_wxid = self.message_obj.raw_message.get('to_wxid', None)
-                        if not os.path.exists(os.path.join(TEMP_DIR, meme)):
-                            shutil.copy2(meme_file, os.path.join(TEMP_DIR, meme))
-                        img_url = f"{client.file_server_url}/{meme}"
-                        
-                        await client.post_image(to_wxid, img_url)
+                        await event.send(MessageChain([Image.fromFileSystem(meme_file)]))
                     else:
                         await self.context.send_message(
                             event.unified_msg_origin,
