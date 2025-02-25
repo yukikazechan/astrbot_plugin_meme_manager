@@ -73,4 +73,4 @@ async def get_public_ip():
             except:
                 continue
     
-    return "127.0.0.1"
+    return "[服务器公网ip]"
