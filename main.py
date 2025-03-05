@@ -7,7 +7,6 @@ import json
 import time
 import aiohttp
 import ssl
-import imghdr
 import copy
 from PIL import Image
 import asyncio
@@ -301,15 +300,12 @@ class MemeSender(Star):
                             async with session.get(img.url) as resp:
                                 content = await resp.read()
 
-                    file_type = imghdr.what(None, h=content)
-                    if not file_type:
-                        try:
-                            with Image.open(io.BytesIO(content)) as temp_img:
-                                temp_img.verify()  # 验证文件完整性
-                                file_type = temp_img.format.lower()
-                        except Exception as e:
-                            self.logger.error(f"图片格式检测失败: {str(e)}")
-                            file_type = "unknown"
+                    try:
+                        with Image.open(io.BytesIO(content)) as img:
+                            file_type = img.format.lower()
+                    except Exception as e:
+                        self.logger.error(f"图片格式检测失败: {str(e)}")
+                        file_type = "unknown"
 
                     ext_mapping = {
                         "jpeg": ".jpg",
@@ -341,7 +337,7 @@ class MemeSender(Star):
             yield event.plain_result(f"保存失败了：{str(e)}")
 
     async def reload_emotions(self):
-        """动态重新加载表情配置并更新人格"""
+        """动态重新加载表情配置"""
         try:
             self.category_manager.sync_with_filesystem()
             
@@ -373,7 +369,7 @@ class MemeSender(Star):
 
     @filter.on_llm_response(priority=99999)
     async def resp(self, event: AstrMessageEvent, response: LLMResponse):
-        """处理 LLM 响应，识别表情, 注入人格"""
+        """处理 LLM 响应，识别表情"""
         
         if not response or not response.completion_text:
             return
