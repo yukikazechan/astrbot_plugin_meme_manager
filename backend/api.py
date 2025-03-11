@@ -37,32 +37,51 @@ async def get_emojis_by_category(category):
 @api.route("/emoji/add", methods=["POST"])
 async def add_emoji():
     """添加表情包到指定类别"""
-    category = None
-    image_file = None
-    if "image_file" in request.files:
-        image_file = request.files["image_file"]
-        category = request.form.get("category")
-    else:
-        data = await request.get_json()
-        if data:
-            category = data.get("category")
-            image_file = data.get("image_file")
-    if not category or not image_file:
-        return jsonify({"message": "Category and image file are required"}), 400
-
     try:
-        result_path = add_emoji_to_category(category, image_file)
-
+        # 检查是否有文件 - 使用 await 获取请求文件
+        files = await request.files
+        if not files or "image_file" not in files:
+            return jsonify({"message": "没有找到上传的图片文件"}), 400
         
-        # 添加成功后同步配置
-        plugin_config = current_app.config.get("PLUGIN_CONFIG", {})
-        category_manager = plugin_config.get("category_manager")
-        if category_manager:
-            category_manager.sync_with_filesystem()
-
-        return jsonify({"message": "Emoji added successfully", "path": result_path, "category": category, "filename": image_file.filename}), 201
+        image_file = files["image_file"]
+        
+        # 使用 await 获取表单数据
+        form = await request.form
+        category = form.get("category")
+        
+        if not category:
+            return jsonify({"message": "没有指定类别"}), 400
+        
+        if not image_file or not image_file.filename:
+            return jsonify({"message": "无效的图片文件"}), 400
+            
+        # 记录上传信息
+        logger.info(f"收到上传请求: 类别={category}, 文件名={image_file.filename}")
+        
+        try:
+            result_path = add_emoji_to_category(category, image_file)
+            
+            # 添加成功后同步配置
+            plugin_config = current_app.config.get("PLUGIN_CONFIG", {})
+            category_manager = plugin_config.get("category_manager")
+            if category_manager:
+                category_manager.sync_with_filesystem()
+                
+            logger.info(f"表情包添加成功: {result_path}")
+            return jsonify({
+                "message": "表情包添加成功", 
+                "path": result_path, 
+                "category": category, 
+                "filename": image_file.filename
+            }), 201
+            
+        except Exception as inner_e:
+            logger.error(f"处理上传文件时出错: {inner_e}", exc_info=True)
+            return jsonify({"message": f"处理上传文件时出错: {str(inner_e)}"}), 500
+            
     except Exception as e:
-        return jsonify({"message": f"添加表情包失败: {str(e)}"}), 500
+        logger.error(f"处理上传请求时发生未知异常: {e}", exc_info=True)
+        return jsonify({"message": f"处理上传请求时发生未知异常: {str(e)}"}), 500
 
 
 @api.route("/emoji/delete", methods=["POST"])

@@ -95,6 +95,77 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
+      // 添加上传块
+      const uploadBlock = document.createElement("div");
+      uploadBlock.className = "emoji-upload";
+      uploadBlock.style.width = "150px";
+      uploadBlock.style.height = "150px";
+      uploadBlock.style.border = "2px dashed #ccc";
+      uploadBlock.style.borderRadius = "4px";
+      uploadBlock.style.display = "flex";
+      uploadBlock.style.alignItems = "center";
+      uploadBlock.style.justifyContent = "center";
+      uploadBlock.style.cursor = "pointer";
+      uploadBlock.style.flexDirection = "column";
+      uploadBlock.style.backgroundColor = "#f9f9f9";
+
+      uploadBlock.innerHTML = `
+        <div class="upload-icon" style="font-size: 24px; margin-bottom: 5px;">+</div>
+        <div class="upload-text" style="font-size: 14px; text-align: center;">上传表情包</div>
+      `;
+
+      // 创建一个隐藏的文件输入框
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.style.display = "none";
+      fileInput.accept = "image/*";
+      fileInput.multiple = true; // 允许多选文件
+
+      // 当点击上传块时，触发文件输入框的点击事件
+      uploadBlock.addEventListener("click", () => {
+        fileInput.click();
+      });
+
+      // 当选择文件后，上传表情包
+      fileInput.addEventListener("change", (event) => {
+        const files = event.target.files;
+        if (files && files.length > 0) {
+          Array.from(files).forEach((file) => {
+            uploadEmoji(category, file);
+          });
+        }
+        // 清空文件输入框，以便可以再次选择相同的文件
+        fileInput.value = "";
+      });
+
+      // 添加拖放功能
+      uploadBlock.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadBlock.style.backgroundColor = "#eaeaea";
+      });
+
+      uploadBlock.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        uploadBlock.style.backgroundColor = "#f9f9f9";
+      });
+
+      uploadBlock.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadBlock.style.backgroundColor = "#f9f9f9";
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          Array.from(files).forEach((file) => {
+            if (file.type.startsWith("image/")) {
+              uploadEmoji(category, file);
+            }
+          });
+        }
+      });
+
+      // 将文件输入框和上传块添加到表情包网格中
+      emojiGrid.appendChild(uploadBlock);
+      emojiGrid.appendChild(fileInput);
+
       categoryDiv.appendChild(emojiGrid);
       container.appendChild(categoryDiv);
     });
@@ -151,16 +222,55 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         body: formData,
       });
-      const data = await response.json();
+
+      // 检查HTTP状态
       if (!response.ok) {
-        console.error("添加表情包失败，响应异常");
-        alert(data.message);
+        // 尝试获取错误信息，无论是JSON还是文本
+        let errorMessage = "上传失败，服务器返回错误";
+
+        try {
+          // 尝试解析JSON响应
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } else {
+            // 如果不是JSON，获取文本响应
+            errorMessage = await response.text();
+            // 如果是HTML，截取合理长度以避免显示完整HTML
+            if (
+              errorMessage.startsWith("<!DOCTYPE") ||
+              errorMessage.startsWith("<html")
+            ) {
+              errorMessage = "服务器返回了错误页面，请联系管理员";
+            }
+          }
+        } catch (parseError) {
+          console.error("解析错误响应失败", parseError);
+        }
+
+        console.error(
+          "添加表情包失败，响应状态:",
+          response.status,
+          errorMessage
+        );
+        alert(`上传失败: ${errorMessage}`);
         return;
       }
-      fetchEmojis(); // 刷新表情包列表
-      alert(`添加表情包成功: ${data.filename} 到类别 ${data.category}`);
+
+      // 正常响应处理
+      try {
+        const data = await response.json();
+        fetchEmojis(); // 刷新表情包列表
+        alert(`添加表情包成功: ${data.filename} 到类别 ${data.category}`);
+      } catch (jsonError) {
+        console.error("解析成功响应失败", jsonError);
+        alert("表情包可能已上传，但无法解析服务器响应");
+        fetchEmojis(); // 刷新表情包列表以确认
+      }
     } catch (error) {
       console.error("添加表情包失败", error);
+      alert("添加表情包失败: " + error.message);
     }
   }
 
