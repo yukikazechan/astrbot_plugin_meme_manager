@@ -132,6 +132,18 @@
         ]
       }
     },
-    "hint": "管理不同的表情组"
+    "hint": "管理不同的表情组",
+    "items": {
+      "*": {
+        "type": "object",
+        "items": {
+          "high_confidence_emotions": {
+            "description": "高置信度表情列表",
+            "type": "list",
+            "default": []
+          }
+        }
+      }
+    }
   }
 }
