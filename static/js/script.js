@@ -778,7 +778,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message);
         alert(data.message);
-        fetchGroups();
+        await fetchGroups();
+        // 切换到新创建的组
+        const groupSelect = document.getElementById("group-select");
+        groupSelect.value = groupName;
+        await groupSelect.dispatchEvent(new Event('change'));
       } catch (error) {
         console.error("创建表情组失败:", error);
         alert("创建表情组失败: " + error.message);
@@ -799,7 +803,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message);
         alert(data.message);
-        fetchGroups();
         location.reload();
       } catch (error) {
         console.error("删除表情组失败:", error);
@@ -807,7 +810,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   });
-
 
   // 初始化加载数据
   async function initialize() {
@@ -840,7 +842,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 在 DOMContentLoaded 事件中调用 loadCategories
-  // loadCategories(); // 页面加载时获取类别, 已合并到 initialize
+  loadCategories(); // 页面加载时获取类别
 
   // 检查图床同步状态
   async function checkImgHostSyncStatus() {
@@ -942,11 +944,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // 绑定事件
   document
     .getElementById("check-sync-btn")
-    .addEventListener("click", checkSyncStatus);
+    .addEventListener("click", checkImgHostSyncStatus);
   document
     .getElementById("upload-sync-btn")
-    .addEventListener("click", syncToRemote);
+    .addEventListener("click", syncImgHostToRemote);
   document
     .getElementById("download-sync-btn")
-    .addEventListener("click", syncFromRemote);
+    .addEventListener("click", syncImgHostFromRemote);
 });
