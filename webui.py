@@ -58,7 +58,7 @@ async def login():
     if request.method == "POST":
         form_data = await request.form
         key = form_data.get("key")
-        if key == current_app.config.get("PLUGIN_CONFIG", {}).get("server_key"):
+        if key == SERVER_LOGIN_KEY:
             session["authenticated"] = True
             return redirect(url_for("index"))
         else:
@@ -101,11 +101,7 @@ async def start_server(config=None):
     app.config["PLUGIN_CONFIG"] = {
         "img_sync": config.get("img_sync", False),
         "category_manager": config.get("category_manager"),
-        "webui_port": port,
-        "plugin_config": config.get("plugin_config"),
-        "plugin_context": config.get("plugin_context"),
-        "plugin_name": config.get("plugin_name"),
-        "server_key": SERVER_LOGIN_KEY
+        "webui_port": port
     }
 
     @app.before_serving
@@ -130,10 +126,7 @@ async def create_app(config=None):
         app.config["PLUGIN_CONFIG"] = {
             "img_sync": config.get("img_sync"),
             "category_manager": config.get("category_manager"),
-            "webui_port": config.get("webui_port", 5000),
-            "plugin_config": config.get("plugin_config"),
-            "plugin_context": config.get("plugin_context"),
-            "plugin_name": config.get("plugin_name")
+            "webui_port": config.get("webui_port", 5000)
         }
     else:
         print("警告: 配置格式不正确")
