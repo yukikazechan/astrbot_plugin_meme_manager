@@ -58,7 +58,7 @@ async def login():
     if request.method == "POST":
         form_data = await request.form
         key = form_data.get("key")
-        if key == SERVER_LOGIN_KEY:
+        if key == current_app.config.get("PLUGIN_CONFIG", {}).get("server_key"):
             session["authenticated"] = True
             return redirect(url_for("index"))
         else:
