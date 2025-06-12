@@ -813,7 +813,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function initialize() {
     await fetchGroups();
     await fetchEmojis();
-    syncConfig();
+    // syncConfig(); // 移除自动同步
     checkSyncStatus();
     checkImgHostSyncStatus();
   }
@@ -841,7 +841,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 在 DOMContentLoaded 事件中调用 loadCategories
-  loadCategories(); // 页面加载时获取类别
+  // loadCategories(); // 页面加载时获取类别, 已合并到 initialize
 
   // 检查图床同步状态
   async function checkImgHostSyncStatus() {
@@ -943,11 +943,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // 绑定事件
   document
     .getElementById("check-sync-btn")
-    .addEventListener("click", checkImgHostSyncStatus);
+    .addEventListener("click", checkSyncStatus);
   document
     .getElementById("upload-sync-btn")
-    .addEventListener("click", syncImgHostToRemote);
+    .addEventListener("click", syncToRemote);
   document
     .getElementById("download-sync-btn")
-    .addEventListener("click", syncImgHostFromRemote);
+    .addEventListener("click", syncFromRemote);
 });

@@ -360,9 +360,6 @@ async def create_group():
             return jsonify({"message": "Group name is required"}), 400
 
         plugin_config_all = current_app.config.get("PLUGIN_CONFIG", {})
-        plugin_context = plugin_config_all.get("plugin_context")
-        plugin_name = plugin_config_all.get("plugin_name")
-        
         plugin_conf = plugin_config_all.get("plugin_config")
         groups = plugin_conf.get("emotion_groups", {})
         if group_name in groups:
@@ -406,10 +403,7 @@ async def delete_group():
             return jsonify({"message": "Cannot delete default group"}), 400
 
         plugin_config_all = current_app.config.get("PLUGIN_CONFIG", {})
-        plugin_context = plugin_config_all.get("plugin_context")
-        plugin_name = plugin_config_all.get("plugin_name")
-        
-        plugin_conf = plugin_context.get_plugin_config(plugin_name)
+        plugin_conf = plugin_config_all.get("plugin_config")
         if plugin_conf.get("active_emotion_group") == group_name:
             return jsonify({"message": "Cannot delete active group"}), 400
 
@@ -441,10 +435,7 @@ async def switch_group():
             return jsonify({"message": "Group name is required"}), 400
 
         plugin_config_all = current_app.config.get("PLUGIN_CONFIG", {})
-        plugin_context = plugin_config_all.get("plugin_context")
-        plugin_name = plugin_config_all.get("plugin_name")
-        
-        plugin_conf = plugin_context.get_plugin_config(plugin_name)
+        plugin_conf = plugin_config_all.get("plugin_config")
         groups = plugin_conf.get("emotion_groups", {})
         if group_name not in groups:
             return jsonify({"message": f"Group '{group_name}' not found"}), 404
