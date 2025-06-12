@@ -363,18 +363,33 @@ async def create_group():
         plugin_context = plugin_config_all.get("plugin_context")
         plugin_name = plugin_config_all.get("plugin_name")
         
-        plugin_conf = plugin_context.get_plugin_config(plugin_name)
+        plugin_conf = plugin_config_all.get("plugin_config")
         groups = plugin_conf.get("emotion_groups", {})
         if group_name in groups:
-            return jsonify({"message": f"Group '{group_name}' already exists"}), 400
+            return jsonify({"message": f"表情组 '{group_name}' 已存在。"}), 400
 
-        groups[group_name] = {"high_confidence_emotions": []}
+        # 复制 default 组的配置
+        default_group_config = groups.get("default", {"high_confidence_emotions": []})
+        groups[group_name] = default_group_config.copy()
         plugin_conf["emotion_groups"] = groups
         plugin_conf.save_config()
         
-        os.makedirs(os.path.join(MEMES_DIR, group_name), exist_ok=True)
+        # 复制 default 组的描述文件和目录结构
+        from ..config import MEMES_BASE_DIR, DEFAULT_CATEGORY_DESCRIPTIONS
+        from ..utils import load_json, save_json
         
-        return jsonify({"message": f"Group '{group_name}' created successfully. Please reload plugin."}), 201
+        default_data_path = os.path.join(MEMES_BASE_DIR, "memes_data_default.json")
+        new_data_path = os.path.join(MEMES_BASE_DIR, f"memes_data_{group_name}.json")
+        
+        default_descriptions = load_json(default_data_path, DEFAULT_CATEGORY_DESCRIPTIONS)
+        save_json(default_descriptions, new_data_path)
+        
+        new_group_memes_dir = os.path.join(MEMES_DIR, group_name)
+        os.makedirs(new_group_memes_dir, exist_ok=True)
+        for category in default_descriptions.keys():
+            os.makedirs(os.path.join(new_group_memes_dir, category), exist_ok=True)
+
+        return jsonify({"message": f"表情组 '{group_name}' 已成功创建，并继承了 default 组的分类结构。"}), 201
     except Exception as e:
         logger.error(f"创建表情组失败: {e}")
         return jsonify({"message": f"创建表情组失败: {str(e)}"}), 500
