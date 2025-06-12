@@ -98,29 +98,51 @@
     "default": true,
     "hint": "如果为true，则会尝试检测重复的表情, 防止重复使用表情(例如angryangryangry), 一般情况建议开启"
   },
-  "high_confidence_emotions": {
-    "description": "高置信度表情列表，即使在英文上下文中也可能被识别",
-    "type": "list",
-    "default": [
-      "angry",
-      "happy",
-      "sad",
-      "surprised",
-      "confused",
-      "color",
-      "cpu",
-      "fool",
-      "givemoney",
-      "like",
-      "see",
-      "shy",
-      "work",
-      "reply",
-      "meow",
-      "baka",
-      "morning",
-      "sleep",
-      "sigh"
-    ]
+  "active_emotion_group": {
+    "description": "当前激活的表情组",
+    "type": "string",
+    "default": "default",
+    "hint": "切换后需要重载插件才能生效"
+  },
+  "emotion_groups": {
+    "description": "表情组配置",
+    "type": "object",
+    "default": {
+      "default": {
+        "high_confidence_emotions": [
+          "angry",
+          "happy",
+          "sad",
+          "surprised",
+          "confused",
+          "color",
+          "cpu",
+          "fool",
+          "givemoney",
+          "like",
+          "see",
+          "shy",
+          "work",
+          "reply",
+          "meow",
+          "baka",
+          "morning",
+          "sleep",
+          "sigh"
+        ]
+      }
+    },
+    "items": {
+      "*": {
+        "type": "object",
+        "items": {
+          "high_confidence_emotions": {
+            "description": "高置信度表情列表",
+            "type": "list",
+            "default": []
+          }
+        }
+      }
+    }
   }
 }

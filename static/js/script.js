@@ -1,4 +1,26 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // 获取表情组
+  async function fetchGroups() {
+    try {
+      const response = await fetch("/api/groups");
+      if (!response.ok) throw new Error("获取表情组失败");
+      const data = await response.json();
+      const groupSelect = document.getElementById("group-select");
+      groupSelect.innerHTML = "";
+      data.groups.forEach((group) => {
+        const option = document.createElement("option");
+        option.value = group;
+        option.textContent = group;
+        if (group === data.active_group) {
+          option.selected = true;
+        }
+        groupSelect.appendChild(option);
+      });
+    } catch (error) {
+      console.error("加载表情组失败", error);
+    }
+  }
+
   // 获取表情包数据和描述
   async function fetchEmojis() {
     try {
@@ -726,11 +748,77 @@ document.addEventListener("DOMContentLoaded", () => {
   window.cancelEdit = cancelEdit;
   window.saveCategory = saveCategory;
 
-  // 初始化加载数据
-  fetchEmojis();
+  // 表情组管理事件
+  document.getElementById("group-select").addEventListener("change", async (e) => {
+    const groupName = e.target.value;
+    try {
+      const response = await fetch("/api/group/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ group_name: groupName }),
+      });
+      if (!response.ok) throw new Error("切换表情组失败");
+      alert(`已切换到表情组: ${groupName}。页面将刷新以应用更改。`);
+      location.reload();
+    } catch (error) {
+      console.error("切换表情组失败:", error);
+      alert("切换表情组失败: " + error.message);
+    }
+  });
 
-  // 同步配置
-  syncConfig();
+  document.getElementById("create-group-btn").addEventListener("click", async () => {
+    const groupName = prompt("请输入新的表情组名称:");
+    if (groupName) {
+      try {
+        const response = await fetch("/api/group/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ group_name: groupName }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        alert(data.message);
+        fetchGroups();
+      } catch (error) {
+        console.error("创建表情组失败:", error);
+        alert("创建表情组失败: " + error.message);
+      }
+    }
+  });
+
+  document.getElementById("delete-group-btn").addEventListener("click", async () => {
+    const groupSelect = document.getElementById("group-select");
+    const groupName = groupSelect.value;
+    if (groupName && confirm(`确定要删除表情组 "${groupName}" 吗？此操作不可恢复！`)) {
+      try {
+        const response = await fetch("/api/group/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ group_name: groupName }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        alert(data.message);
+        fetchGroups();
+        location.reload();
+      } catch (error) {
+        console.error("删除表情组失败:", error);
+        alert("删除表情组失败: " + error.message);
+      }
+    }
+  });
+
+
+  // 初始化加载数据
+  async function initialize() {
+    await fetchGroups();
+    await fetchEmojis();
+    syncConfig();
+    checkSyncStatus();
+    checkImgHostSyncStatus();
+  }
+
+  initialize();
 
   // 加载类别数据并更新显示
   async function loadCategories() {

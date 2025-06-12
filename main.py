@@ -43,9 +43,12 @@ class MemeSender(Star):
         # 初始化插件
         if not init_plugin():
             raise RuntimeError("插件初始化失败")
+
+        # 获取当前激活的表情组
+        self.active_group = self.config.get("active_emotion_group", "default")
         
         # 初始化类别管理器
-        self.category_manager = CategoryManager()
+        self.category_manager = CategoryManager(self.active_group)
         
         # 初始化图床同步客户端
         self.img_sync = None
@@ -58,7 +61,7 @@ class MemeSender(Star):
                         "secret": stardots_config["secret"],
                         "space": stardots_config.get("space", "memes")
                     },
-                    local_dir=MEMES_DIR
+                    local_dir=self.category_manager.memes_dir # 使用当前组的目录
                 )
 
         # 用于管理服务器
@@ -106,6 +109,99 @@ class MemeSender(Star):
         pass
 
 
+    @filter.command_group("表情组管理")
+    def meme_group_manager(self):
+        """表情组管理命令组:
+        创建
+        删除
+        切换
+        列表
+        """
+        pass
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @meme_group_manager.command("创建")
+    async def create_emotion_group(self, event: AstrMessageEvent, group_name: str):
+        """创建一个新的表情组"""
+        if not re.match(r"^[a-zA-Z0-9_]+$", group_name):
+            yield event.plain_result("组名只能包含字母、数字和下划线。")
+            return
+
+        plugin_conf = self.context.get_plugin_config(self.get_name())
+        groups = plugin_conf.get("emotion_groups", {})
+        if group_name in groups:
+            yield event.plain_result(f"表情组 '{group_name}' 已存在。")
+            return
+
+        groups[group_name] = {"high_confidence_emotions": []}
+        plugin_conf["emotion_groups"] = groups
+        plugin_conf.save_config()
+        
+        # 创建对应文件夹
+        os.makedirs(os.path.join(MEMES_DIR, group_name), exist_ok=True)
+
+        yield event.plain_result(f"表情组 '{group_name}' 创建成功！请重载插件以应用更改。")
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @meme_group_manager.command("删除")
+    async def delete_emotion_group(self, event: AstrMessageEvent, group_name: str):
+        """删除一个表情组"""
+        if group_name == "default":
+            yield event.plain_result("不能删除默认表情组。")
+            return
+
+        plugin_conf = self.context.get_plugin_config(self.get_name())
+        groups = plugin_conf.get("emotion_groups", {})
+        if group_name not in groups:
+            yield event.plain_result(f"表情组 '{group_name}' 不存在。")
+            return
+
+        if plugin_conf.get("active_emotion_group") == group_name:
+            yield event.plain_result(f"不能删除当前激活的表情组 '{group_name}'。请先切换到其他组。")
+            return
+
+        del groups[group_name]
+        plugin_conf["emotion_groups"] = groups
+        plugin_conf.save_config()
+        
+        # 删除文件夹 (可选，为安全起见可提示用户手动删除)
+        group_dir = os.path.join(MEMES_DIR, group_name)
+        if os.path.exists(group_dir):
+            shutil.rmtree(group_dir)
+
+        yield event.plain_result(f"表情组 '{group_name}' 已被删除！请重载插件以应用更改。")
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @meme_group_manager.command("切换")
+    async def switch_emotion_group(self, event: AstrMessageEvent, group_name: str):
+        """切换当前激活的表情组"""
+        plugin_conf = self.context.get_plugin_config(self.get_name())
+        groups = plugin_conf.get("emotion_groups", {})
+        if group_name not in groups:
+            yield event.plain_result(f"表情组 '{group_name}' 不存在。")
+            return
+
+        plugin_conf["active_emotion_group"] = group_name
+        plugin_conf.save_config()
+        yield event.plain_result(f"已切换到表情组 '{group_name}'。请重载插件以生效。")
+
+    @meme_group_manager.command("列表")
+    async def list_emotion_groups(self, event: AstrMessageEvent):
+        """列出所有可用的表情组"""
+        plugin_conf = self.context.get_plugin_config(self.get_name())
+        groups = plugin_conf.get("emotion_groups", {})
+        active_group = plugin_conf.get("active_emotion_group", "default")
+        
+        group_list = []
+        for name in groups.keys():
+            if name == active_group:
+                group_list.append(f"- {name} (当前)")
+            else:
+                group_list.append(f"- {name}")
+        
+        yield event.plain_result("可用的表情组：\n" + "\n".join(group_list))
+
+
     @filter.permission_type(filter.PermissionType.ADMIN)
     @meme_manager.command("开启管理后台")
     async def start_webui(self, event: AstrMessageEvent):
@@ -130,7 +226,10 @@ class MemeSender(Star):
                 "img_sync": self.img_sync,
                 "category_manager": self.category_manager,
                 "webui_port": self.server_port,
-                "server_key": self.server_key
+                "server_key": self.server_key,
+                "plugin_config": self.config,
+                "plugin_context": self.context,
+                "plugin_name": self.get_name()
             }
             self.webui_process = Process(target=run_server, args=(config_for_server,))
             self.webui_process.start()
@@ -148,7 +247,7 @@ class MemeSender(Star):
             yield event.plain_result(
                 f"✨ 管理后台已就绪！\n"
                 f"━━━━━━━━━━━━━━\n"
-                f"表情包管理服务器已启动！\n"
+                f"当前表情组: {self.active_group}\n"
                 f"⚠️ 如果地址错误或未发出, 请使用 [服务器公网ip]:{self.server_port} 访问\n"
                 f"🔑 临时密钥：{self.server_key} （本次有效）\n"
                 f"⚠️ 请勿分享给未授权用户"
@@ -209,9 +308,11 @@ class MemeSender(Star):
 
     def _reload_personas(self):
         """重新注入人格"""
-        self.category_mapping = load_json(MEMES_DATA_PATH, DEFAULT_CATEGORY_DESCRIPTIONS)
+        self.category_mapping = self.category_manager.get_descriptions()
         self.category_mapping_string = dict_to_string(self.category_mapping)
         self.sys_prompt_add = self.prompt_head + self.category_mapping_string + self.prompt_tail_1 + str(self.max_emotions_per_message) + self.prompt_tail_2
+        
+        # 更新人格
         personas = self.context.provider_manager.personas
         for persona, persona_backup in zip(personas, self.persona_backup):
             persona["prompt"] =  persona_backup["prompt"] + self.sys_prompt_add
@@ -443,7 +544,8 @@ class MemeSender(Star):
         
         # 第三阶段：处理重复表情模式（如angryangryangry）
         if self.config.get("enable_repeated_emotion_detection", True):
-            high_confidence_emotions = self.config.get("high_confidence_emotions", [])
+            active_group_config = self.config.get("emotion_groups", {}).get(self.active_group, {})
+            high_confidence_emotions = active_group_config.get("high_confidence_emotions", [])
             
             for emotion in valid_emoticons:
                 # 跳过太短的表情词，避免误判
@@ -566,7 +668,9 @@ class MemeSender(Star):
             return True
         
         # 规则5：如果是已知的表情占比很高(>=70%)的单词，即使在英文上下文中也可能是表情
-        if word in self.config.get("high_confidence_emotions", []):
+        active_group_config = self.config.get("emotion_groups", {}).get(self.active_group, {})
+        high_confidence_emotions = active_group_config.get("high_confidence_emotions", [])
+        if word in high_confidence_emotions:
             return True
         
         return False
@@ -623,7 +727,7 @@ class MemeSender(Star):
                 if not emotion:
                     continue
 
-                emotion_path = os.path.join(MEMES_DIR, emotion)
+                emotion_path = os.path.join(self.category_manager.memes_dir, emotion)
                 if not os.path.exists(emotion_path):
                     continue
 

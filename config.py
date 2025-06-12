@@ -7,21 +7,22 @@ PLUGIN_DIR = Path(__file__).parent.absolute()
 
 # 定义表情包文件夹路径 - 避免使用相对路径如 ../..
 # 直接使用绝对路径，或者相对于插件目录的路径
-MEMES_DIR = Path(os.path.join(PLUGIN_DIR, "..", "..", "memes_data", "memes")).resolve()
+MEMES_BASE_DIR = Path(os.path.join(PLUGIN_DIR, "..", "..", "memes_data")).resolve()
+MEMES_DIR = MEMES_BASE_DIR / "memes"
 
 # 确保目录存在
 os.makedirs(MEMES_DIR, exist_ok=True)
 
 # 添加日志输出帮助调试
 print(f"插件目录: {PLUGIN_DIR}", file=sys.stderr)
-print(f"表情包目录: {MEMES_DIR}", file=sys.stderr)
+print(f"表情包基础目录: {MEMES_BASE_DIR}", file=sys.stderr)
 
 # 获取当前文件所在目录
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 基础路径配置
 BASE_DATA_DIR = os.path.join(CURRENT_DIR, "../../memes_data")
-MEMES_DATA_PATH = os.path.join(BASE_DATA_DIR, "memes_data.json")  # 类别描述数据文件路径
+MEMES_DATA_PATH_DEFAULT = os.path.join(BASE_DATA_DIR, "memes_data_default.json")  # 默认类别描述数据文件路径
 TEMP_DIR = os.path.join(CURRENT_DIR, "../../temp")
 
 # 默认的类别描述

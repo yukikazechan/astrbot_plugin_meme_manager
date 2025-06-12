@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 @api.route("/emoji", methods=["GET"])
 async def get_all_emojis():
     """获取所有表情包（按类别分组）"""
-    emoji_data = await scan_emoji_folder()
+    plugin_config = current_app.config.get("PLUGIN_CONFIG", {})
+    active_group = plugin_config.get("plugin_config", {}).get("active_emotion_group", "default")
+    emoji_data = await scan_emoji_folder(group=active_group)
     for category in emoji_data:
         if not isinstance(emoji_data[category], list):
             emoji_data[category] = []
@@ -28,7 +30,9 @@ async def get_all_emojis():
 @api.route("/emoji/<category>", methods=["GET"])
 async def get_emojis_by_category(category):
     """获取指定类别的表情包"""
-    emojis = get_emoji_by_category(category)
+    plugin_config = current_app.config.get("PLUGIN_CONFIG", {})
+    active_group = plugin_config.get("plugin_config", {}).get("active_emotion_group", "default")
+    emojis = get_emoji_by_category(category, group=active_group)
     if emojis is None:
         return jsonify({"message": "Category not found"}), 404
     return jsonify(emojis if isinstance(emojis, list) else []), 200
@@ -38,14 +42,11 @@ async def get_emojis_by_category(category):
 async def add_emoji():
     """添加表情包到指定类别"""
     try:
-        # 检查是否有文件 - 使用 await 获取请求文件
         files = await request.files
         if not files or "image_file" not in files:
             return jsonify({"message": "没有找到上传的图片文件"}), 400
         
         image_file = files["image_file"]
-        
-        # 使用 await 获取表单数据
         form = await request.form
         category = form.get("category")
         
@@ -54,24 +55,24 @@ async def add_emoji():
         
         if not image_file or not image_file.filename:
             return jsonify({"message": "无效的图片文件"}), 400
+
+        plugin_config = current_app.config.get("PLUGIN_CONFIG", {})
+        active_group = plugin_config.get("plugin_config", {}).get("active_emotion_group", "default")
             
-        # 记录上传信息
-        logger.info(f"收到上传请求: 类别={category}, 文件名={image_file.filename}")
+        logger.info(f"收到上传请求: 组={active_group}, 类别={category}, 文件名={image_file.filename}")
         
         try:
-            result_path = add_emoji_to_category(category, image_file)
+            result_path = add_emoji_to_category(category, image_file, group=active_group)
             
-            # 添加成功后同步配置
-            plugin_config = current_app.config.get("PLUGIN_CONFIG", {})
             category_manager = plugin_config.get("category_manager")
             if category_manager:
                 category_manager.sync_with_filesystem()
                 
             logger.info(f"表情包添加成功: {result_path}")
             return jsonify({
-                "message": "表情包添加成功", 
-                "path": result_path, 
-                "category": category, 
+                "message": "表情包添加成功",
+                "path": result_path,
+                "category": category,
                 "filename": image_file.filename
             }), 201
             
@@ -93,7 +94,10 @@ async def delete_emoji():
     if not category or not image_file:
         return jsonify({"message": "Category and image file are required"}), 400
 
-    if delete_emoji_from_category(category, image_file):
+    plugin_config = current_app.config.get("PLUGIN_CONFIG", {})
+    active_group = plugin_config.get("plugin_config", {}).get("active_emotion_group", "default")
+
+    if delete_emoji_from_category(category, image_file, group=active_group):
         return jsonify({"message": "Emoji deleted successfully", "category": category, "filename": image_file}), 200
     else:
         return jsonify({"message": "Emoji not found"}), 404
@@ -228,7 +232,8 @@ async def restore_category():
             return jsonify({"message": "Category manager not found"}), 404
 
         # 创建类别目录
-        category_path = os.path.join(MEMES_DIR, category)
+        active_group = plugin_config.get("plugin_config", {}).get("active_emotion_group", "default")
+        category_path = os.path.join(MEMES_DIR, active_group, category)
         os.makedirs(category_path, exist_ok=True)
 
         # 更新类别描述
@@ -327,5 +332,119 @@ async def check_sync_process():
         return jsonify({"completed": False})
     except Exception as e:
         return jsonify({"message": str(e)}), 500
+
+
+@api.route("/groups", methods=["GET"])
+async def get_groups():
+    """获取所有表情组"""
+    try:
+        plugin_config_all = current_app.config.get("PLUGIN_CONFIG", {})
+        plugin_config = plugin_config_all.get("plugin_config", {})
+        groups = plugin_config.get("emotion_groups", {"default": {}})
+        active_group = plugin_config.get("active_emotion_group", "default")
+        return jsonify({
+            "groups": list(groups.keys()),
+            "active_group": active_group
+        })
+    except Exception as e:
+        logger.error(f"获取表情组失败: {e}")
+        return jsonify({"error": "获取表情组失败"}), 500
+
+@api.route("/group/create", methods=["POST"])
+async def create_group():
+    """创建新表情组"""
+    try:
+        data = await request.get_json()
+        group_name = data.get("group_name")
+        if not group_name:
+            return jsonify({"message": "Group name is required"}), 400
+
+        plugin_config_all = current_app.config.get("PLUGIN_CONFIG", {})
+        plugin_context = plugin_config_all.get("plugin_context")
+        plugin_name = plugin_config_all.get("plugin_name")
+        
+        plugin_conf = plugin_context.get_plugin_config(plugin_name)
+        groups = plugin_conf.get("emotion_groups", {})
+        if group_name in groups:
+            return jsonify({"message": f"Group '{group_name}' already exists"}), 400
+
+        groups[group_name] = {"high_confidence_emotions": []}
+        plugin_conf["emotion_groups"] = groups
+        plugin_conf.save_config()
+        
+        os.makedirs(os.path.join(MEMES_DIR, group_name), exist_ok=True)
+        
+        return jsonify({"message": f"Group '{group_name}' created successfully. Please reload plugin."}), 201
+    except Exception as e:
+        logger.error(f"创建表情组失败: {e}")
+        return jsonify({"message": f"创建表情组失败: {str(e)}"}), 500
+
+@api.route("/group/delete", methods=["POST"])
+async def delete_group():
+    """删除表情组"""
+    try:
+        data = await request.get_json()
+        group_name = data.get("group_name")
+        if not group_name:
+            return jsonify({"message": "Group name is required"}), 400
+        if group_name == "default":
+            return jsonify({"message": "Cannot delete default group"}), 400
+
+        plugin_config_all = current_app.config.get("PLUGIN_CONFIG", {})
+        plugin_context = plugin_config_all.get("plugin_context")
+        plugin_name = plugin_config_all.get("plugin_name")
+        
+        plugin_conf = plugin_context.get_plugin_config(plugin_name)
+        if plugin_conf.get("active_emotion_group") == group_name:
+            return jsonify({"message": "Cannot delete active group"}), 400
+
+        groups = plugin_conf.get("emotion_groups", {})
+        if group_name not in groups:
+            return jsonify({"message": f"Group '{group_name}' not found"}), 404
+        
+        del groups[group_name]
+        plugin_conf["emotion_groups"] = groups
+        plugin_conf.save_config()
+        
+        import shutil
+        group_dir = os.path.join(MEMES_DIR, group_name)
+        if os.path.exists(group_dir):
+            shutil.rmtree(group_dir)
+
+        return jsonify({"message": f"Group '{group_name}' deleted successfully. Please reload plugin."}), 200
+    except Exception as e:
+        logger.error(f"删除表情组失败: {e}")
+        return jsonify({"message": f"删除表情组失败: {str(e)}"}), 500
+
+@api.route("/group/switch", methods=["POST"])
+async def switch_group():
+    """切换激活的表情组"""
+    try:
+        data = await request.get_json()
+        group_name = data.get("group_name")
+        if not group_name:
+            return jsonify({"message": "Group name is required"}), 400
+
+        plugin_config_all = current_app.config.get("PLUGIN_CONFIG", {})
+        plugin_context = plugin_config_all.get("plugin_context")
+        plugin_name = plugin_config_all.get("plugin_name")
+        
+        plugin_conf = plugin_context.get_plugin_config(plugin_name)
+        groups = plugin_conf.get("emotion_groups", {})
+        if group_name not in groups:
+            return jsonify({"message": f"Group '{group_name}' not found"}), 404
+
+        plugin_conf["active_emotion_group"] = group_name
+        plugin_conf.save_config()
+        
+        # 更新 category_manager
+        category_manager = plugin_config_all.get("category_manager")
+        if category_manager:
+            category_manager.__init__(active_group=group_name)
+
+        return jsonify({"message": f"Switched to group '{group_name}'. Please reload plugin."}), 200
+    except Exception as e:
+        logger.error(f"切换表情组失败: {e}")
+        return jsonify({"message": f"切换表情组失败: {str(e)}"}), 500
 
 
