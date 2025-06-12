@@ -27,7 +27,7 @@ from astrbot.core.platform.sources.gewechat.gewechat_event import GewechatPlatfo
 from .webui import run_server, ServerState
 from .utils import get_public_ip, generate_secret_key, dict_to_string, load_json
 from .image_host.img_sync import ImageSync
-from .config import MEMES_DIR, MEMES_DATA_PATH, DEFAULT_CATEGORY_DESCRIPTIONS, TEMP_DIR
+from .config import MEMES_DIR
 from .backend.category_manager import CategoryManager
 from .init import init_plugin
 
@@ -370,7 +370,7 @@ class MemeSender(Star):
             return
 
         category = upload_state["category"]
-        save_dir = os.path.join(MEMES_DIR, category)
+        save_dir = os.path.join(self.category_manager.memes_dir, category)
 
         try:
             os.makedirs(save_dir, exist_ok=True)
@@ -447,13 +447,13 @@ class MemeSender(Star):
 
     def _check_meme_directories(self):
         """检查表情包目录是否存在并且包含图片"""
-        self.logger.info(f"开始检查表情包根目录: {MEMES_DIR}")
-        if not os.path.exists(MEMES_DIR):
-            self.logger.error(f"表情包根目录不存在，请检查: {MEMES_DIR}")
+        self.logger.info(f"开始检查表情包根目录: {self.category_manager.memes_dir}")
+        if not os.path.exists(self.category_manager.memes_dir):
+            self.logger.error(f"表情包根目录不存在，请检查: {self.category_manager.memes_dir}")
             return
 
-        for emotion in self.category_manager.get_descriptions().values():
-            emotion_path = os.path.join(MEMES_DIR, emotion)
+        for emotion in self.category_manager.get_descriptions().keys():
+            emotion_path = os.path.join(self.category_manager.memes_dir, emotion)
             if not os.path.exists(emotion_path):
                 self.logger.error(f"表情分类 {emotion} 对应的目录不存在，请查看: {emotion_path}")
                 continue
