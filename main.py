@@ -205,7 +205,7 @@ class MemeSender(Star):
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @meme_manager.command("开启管理后台")
-    async def start_webui(self, event: AstrMessageEvent):
+    async def start_webui(self, event: AstrMessageEvent, *args, **kwargs):
         """启动表情包管理服务器"""
         yield event.plain_result("🚀 正在启动管理后台，请稍等片刻～")
 
@@ -354,7 +354,7 @@ class MemeSender(Star):
         )
 
     @filter.event_message_type(EventMessageType.ALL)
-    async def handle_upload_image(self, event: AstrMessageEvent):
+    async def handle_upload_image(self, event: AstrMessageEvent, *args, **kwargs):
         """处理用户上传的图片"""
         user_key = f"{event.session_id}_{event.get_sender_id()}"
         upload_state = self.upload_states.get(user_key)
