@@ -39,6 +39,7 @@ class MemeSender(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
         self.config = config or {}
+        self.name = "meme_manager"
         
         # 初始化插件
         if not init_plugin():
@@ -127,7 +128,7 @@ class MemeSender(Star):
             yield event.plain_result("组名只能包含字母、数字和下划线。")
             return
 
-        plugin_conf = self.context.get_plugin_config(self.get_name())
+        plugin_conf = self.config
         groups = plugin_conf.get("emotion_groups", {})
         if group_name in groups:
             yield event.plain_result(f"表情组 '{group_name}' 已存在。")
@@ -150,7 +151,7 @@ class MemeSender(Star):
             yield event.plain_result("不能删除默认表情组。")
             return
 
-        plugin_conf = self.context.get_plugin_config(self.get_name())
+        plugin_conf = self.config
         groups = plugin_conf.get("emotion_groups", {})
         if group_name not in groups:
             yield event.plain_result(f"表情组 '{group_name}' 不存在。")
@@ -175,7 +176,7 @@ class MemeSender(Star):
     @meme_group_manager.command("切换")
     async def switch_emotion_group(self, event: AstrMessageEvent, group_name: str):
         """切换当前激活的表情组"""
-        plugin_conf = self.context.get_plugin_config(self.get_name())
+        plugin_conf = self.config
         groups = plugin_conf.get("emotion_groups", {})
         if group_name not in groups:
             yield event.plain_result(f"表情组 '{group_name}' 不存在。")
@@ -229,7 +230,7 @@ class MemeSender(Star):
                 "server_key": self.server_key,
                 "plugin_config": self.config,
                 "plugin_context": self.context,
-                "plugin_name": self.get_name()
+                "plugin_name": self.name
             }
             self.webui_process = Process(target=run_server, args=(config_for_server,))
             self.webui_process.start()
