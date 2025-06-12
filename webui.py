@@ -104,7 +104,8 @@ async def start_server(config=None):
         "webui_port": port,
         "plugin_config": config.get("plugin_config"),
         "plugin_context": config.get("plugin_context"),
-        "plugin_name": config.get("plugin_name")
+        "plugin_name": config.get("plugin_name"),
+        "server_key": SERVER_LOGIN_KEY
     }
 
     @app.before_serving
