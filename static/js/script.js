@@ -813,7 +813,6 @@ document.addEventListener("DOMContentLoaded", () => {
   async function initialize() {
     await fetchGroups();
     await fetchEmojis();
-    // syncConfig(); // 移除自动同步
     checkSyncStatus();
     checkImgHostSyncStatus();
   }

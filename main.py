@@ -189,7 +189,7 @@ class MemeSender(Star):
     @meme_group_manager.command("列表")
     async def list_emotion_groups(self, event: AstrMessageEvent):
         """列出所有可用的表情组"""
-        plugin_conf = self.context.get_plugin_config(self.get_name())
+        plugin_conf = self.config
         groups = plugin_conf.get("emotion_groups", {})
         active_group = plugin_conf.get("active_emotion_group", "default")
         
