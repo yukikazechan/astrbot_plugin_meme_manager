@@ -4,7 +4,7 @@ from .utils import ensure_dir_exists, save_json, copy_memes_if_not_exists
 from .config import (
     BASE_DATA_DIR,
     MEMES_DIR,
-    MEMES_DATA_PATH,
+    MEMES_DATA_PATH_DEFAULT,
     DEFAULT_CATEGORY_DESCRIPTIONS
 )
 
@@ -19,12 +19,12 @@ def init_plugin():
         # 创建表情包目录
         copy_memes_if_not_exists()
         
-        # 初始化 memes_data.json
-        if not os.path.exists(MEMES_DATA_PATH):
-            save_json(DEFAULT_CATEGORY_DESCRIPTIONS, MEMES_DATA_PATH)
-            logger.info(f"创建默认类别描述文件: {MEMES_DATA_PATH}")
+        # 初始化默认的 memes_data_default.json
+        if not os.path.exists(MEMES_DATA_PATH_DEFAULT):
+            save_json(DEFAULT_CATEGORY_DESCRIPTIONS, MEMES_DATA_PATH_DEFAULT)
+            logger.info(f"创建默认类别描述文件: {MEMES_DATA_PATH_DEFAULT}")
             
         return True
     except Exception as e:
         logger.error(f"插件初始化失败: {e}")
-        return False 
+        return False
